@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { adminApi } from "@/lib/api";
 import type { PromptVersion } from "@/lib/api";
 
@@ -10,6 +10,13 @@ const textareaClass =
   "mt-1 w-full rounded-lg border border-brand-warm-gray/40 bg-brand-cream/50 p-3 font-mono text-sm text-brand-navy-dark focus:border-brand-teal/50 focus:outline-none focus:ring-2 focus:ring-brand-teal/30 dark:border-border dark:bg-muted/50 dark:text-foreground";
 const labelClass =
   "text-xs font-semibold uppercase tracking-wide text-brand-slate dark:text-muted-foreground";
+
+function audienceLabel(key: string): string {
+  if (key === "child") return "Child";
+  if (key === "ex-partner") return "Ex-partner";
+  if (key === "solicitor") return "Solicitor";
+  return key;
+}
 
 export function PromptAdminContent() {
   type ActiveFilter = "all" | "active" | "deactive";
@@ -41,12 +48,6 @@ export function PromptAdminContent() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const isEditing = Boolean(editingId);
-
-  const audienceLabel = useMemo(
-    () => (key: string) =>
-      key === "child" ? "child" : key === "ex-partner" ? "ex-partner" : key === "solicitor" ? "solicitor" : key,
-    []
-  );
 
   const load = async (targetPage = page) => {
     setLoading(true);
@@ -235,9 +236,9 @@ export function PromptAdminContent() {
                 className={inputClass}
               >
                 <option value="all">All</option>
-                <option value="child">child</option>
-                <option value="ex-partner">ex-partner</option>
-                <option value="solicitor">solicitor</option>
+                <option value="child">Child</option>
+                <option value="ex-partner">Ex-partner</option>
+                <option value="solicitor">Solicitor</option>
               </select>
             </label>
             <label className="min-w-[180px]">
@@ -306,7 +307,9 @@ export function PromptAdminContent() {
                     <td className="max-w-[640px] truncate px-3 py-2 text-brand-slate dark:text-muted-foreground">
                       {row.components.system}
                     </td>
-                    <td className="px-3 py-2 text-brand-slate dark:text-muted-foreground">{audienceLabel(row.audience)}</td>
+                    <td className="px-3 py-2 text-brand-slate dark:text-muted-foreground">
+                      {audienceLabel(row.audience)}
+                    </td>
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
@@ -395,9 +398,9 @@ export function PromptAdminContent() {
                   onChange={(e) => setAudience(e.target.value as "child" | "ex-partner" | "solicitor")}
                   className={inputClass}
                 >
-                  <option value="child">child</option>
-                  <option value="ex-partner">ex-partner</option>
-                  <option value="solicitor">solicitor</option>
+                  <option value="child">Child</option>
+                  <option value="ex-partner">Ex-partner</option>
+                  <option value="solicitor">Solicitor</option>
                 </select>
               </label>
               <label className="block">
