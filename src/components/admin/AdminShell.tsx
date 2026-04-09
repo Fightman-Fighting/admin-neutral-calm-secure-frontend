@@ -1,14 +1,23 @@
 "use client";
 
-import { LogOut, Moon, Sun } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { LogOut, Moon, Sun, FileText, Globe, Users } from "lucide-react";
 import Logo from "@/components/branding/Logo";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/theme-provider";
 import { useAuth } from "@/contexts/AuthContext";
 
+const NAV_ITEMS = [
+  { href: "/", label: "Prompts", icon: FileText },
+  { href: "/audiences", label: "Audiences", icon: Users },
+  { href: "/countries", label: "Countries", icon: Globe },
+] as const;
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const pathname = usePathname();
 
   const toggleTheme = () => {
     if (theme === "system") {
@@ -28,6 +37,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <span className="hidden rounded-full bg-brand-teal/15 px-2.5 py-0.5 text-xs font-medium text-brand-teal-dark dark:text-brand-teal-light sm:inline-block">
               Admin
             </span>
+            <nav className="ml-4 hidden items-center gap-1 sm:flex">
+              {NAV_ITEMS.map((item) => {
+                const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-brand-teal/15 text-brand-teal-dark dark:text-brand-teal-light"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {user?.email && (

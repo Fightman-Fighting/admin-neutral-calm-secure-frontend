@@ -1,31 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { adminApi } from "@/lib/api";
-import type { PromptVersion } from "@/lib/api";
-
-const inputClass =
-  "mt-1 w-full rounded-lg border border-brand-warm-gray/40 bg-brand-cream/50 px-3 py-2 text-sm text-brand-navy-dark focus:border-brand-teal/50 focus:outline-none focus:ring-2 focus:ring-brand-teal/30 dark:border-border dark:bg-muted/50 dark:text-foreground";
-const textareaClass =
-  "mt-1 w-full rounded-lg border border-brand-warm-gray/40 bg-brand-cream/50 p-3 font-mono text-sm text-brand-navy-dark focus:border-brand-teal/50 focus:outline-none focus:ring-2 focus:ring-brand-teal/30 dark:border-border dark:bg-muted/50 dark:text-foreground";
-const labelClass =
-  "text-xs font-semibold uppercase tracking-wide text-brand-slate dark:text-muted-foreground";
-
-function audienceLabel(key: string): string {
-  if (key === "child") return "Child";
-  if (key === "ex-partner") return "Ex-partner";
-  if (key === "solicitor") return "Solicitor";
-  return key;
-}
+import type { PromptVersion, Audience } from "@/lib/api";
+import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
+import {
+  adminErrorTextClass,
+  adminInputClass,
+  adminLabelClass,
+  adminModalWidePanelClass,
+  adminMutedTextClass,
+  adminOutlineButtonClass,
+  adminPaginationButtonClass,
+  adminPanelClass,
+  adminPrimaryCtaClass,
+  adminPrimarySubmitClass,
+  adminSuccessTextClass,
+  adminTableBodyClass,
+  adminTableClass,
+  adminTableDeleteButtonClass,
+  adminTableEditButtonClass,
+  adminTableHeadRowClass,
+  adminTableSortButtonClass,
+  adminTextareaClass,
+  adminTitleH1Class,
+  adminTitleH3Class,
+} from "@/components/admin/adminUi";
 
 export function PromptAdminContent() {
   type ActiveFilter = "all" | "active" | "deactive";
-  type AudienceFilter = "all" | "child" | "ex-partner" | "solicitor";
   type ConfirmAction = "activate" | "delete" | null;
+
+  const [audiences, setAudiences] = useState<Audience[]>([]);
+  const audiencesFetched = useRef(false);
+
+  const fetchAudiences = useCallback(async () => {
+    if (audiencesFetched.current) return;
+    audiencesFetched.current = true;
+    try {
+      const res = await adminApi.listAudiences();
+      if (res.audiences.length > 0) setAudiences(res.audiences);
+    } catch {
+      /* fall through — dropdown will be empty until retry */
+    }
+  }, []);
+
+  useEffect(() => { void fetchAudiences(); }, [fetchAudiences]);
+
+  const audienceLabel = (key: string): string => {
+    const found = audiences.find((a) => a.code === key);
+    return found ? found.label : key;
+  };
 
   const [name, setName] = useState("");
   const [system, setSystem] = useState("");
-  const [audience, setAudience] = useState<"child" | "ex-partner" | "solicitor">("child");
+  const [audience, setAudience] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -39,7 +68,7 @@ export function PromptAdminContent() {
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
-  const [audienceFilter, setAudienceFilter] = useState<AudienceFilter>("all");
+  const [audienceFilter, setAudienceFilter] = useState("all");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [confirmTarget, setConfirmTarget] = useState<PromptVersion | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -80,7 +109,7 @@ export function PromptAdminContent() {
     setEditingId(null);
     setName("");
     setSystem("");
-    setAudience("child");
+    setAudience(audiences.length > 0 ? audiences[0].code : "");
     setIsModalOpen(true);
     setSuccess("");
     setError("");
@@ -90,7 +119,7 @@ export function PromptAdminContent() {
     setEditingId(row.id);
     setName(row.name);
     setSystem(row.components.system);
-    setAudience(row.audience === "solicitor" || row.audience === "ex-partner" ? row.audience : "child");
+    setAudience(row.audience);
     setIsModalOpen(true);
     setSuccess("");
     setError("");
@@ -199,54 +228,48 @@ export function PromptAdminContent() {
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-2xl border border-brand-warm-gray/40 bg-white p-5 shadow-lg shadow-brand-navy/5 dark:border-border/60 dark:bg-card sm:p-8">
-        <h1 className="font-serif text-xl font-bold text-brand-navy-dark dark:text-foreground sm:text-2xl">
-          Prompt admin
-        </h1>
-        <p className="mt-2 text-sm text-brand-slate dark:text-muted-foreground">
+      <div className={adminPanelClass}>
+        <h1 className={adminTitleH1Class}>Prompt admin</h1>
+        <p className={`mt-2 ${adminMutedTextClass}`}>
           Manage prompt versions and keep exactly one active version.
         </p>
 
         <div className="mt-4 flex w-full flex-wrap items-end justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
             <label className="w-full max-w-[220px] sm:max-w-[240px]">
-              <span className={labelClass}>Search title or system prompt</span>
+              <span className={adminLabelClass}>Search title or system prompt</span>
               <input
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void onSearchSubmit();
                 }}
-                className={inputClass}
+                className={adminInputClass}
                 placeholder="Search..."
               />
             </label>
-            <button
-              type="button"
-              onClick={() => void onSearchSubmit()}
-              className="rounded-lg border border-brand-warm-gray/40 px-3 py-2 text-sm transition-colors hover:bg-brand-cream/80 dark:border-border dark:hover:bg-muted/50"
-            >
+            <button type="button" onClick={() => void onSearchSubmit()} className={adminOutlineButtonClass}>
               Search
             </button>
             <label className="min-w-[180px]">
-              <span className={labelClass}>Audience</span>
+              <span className={adminLabelClass}>Audience</span>
               <select
                 value={audienceFilter}
-                onChange={(e) => setAudienceFilter(e.target.value as AudienceFilter)}
-                className={inputClass}
+                onChange={(e) => setAudienceFilter(e.target.value)}
+                className={adminInputClass}
               >
                 <option value="all">All</option>
-                <option value="child">Child</option>
-                <option value="ex-partner">Ex-partner</option>
-                <option value="solicitor">Solicitor</option>
+                {audiences.map((a) => (
+                  <option key={a.code} value={a.code}>{a.label}</option>
+                ))}
               </select>
             </label>
             <label className="min-w-[180px]">
-              <span className={labelClass}>Active</span>
+              <span className={adminLabelClass}>Active</span>
               <select
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
-                className={inputClass}
+                className={adminInputClass}
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -254,36 +277,29 @@ export function PromptAdminContent() {
               </select>
             </label>
           </div>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="ml-auto shrink-0 rounded-full bg-brand-navy-dark px-5 py-2.5 text-sm font-semibold tracking-wide text-white shadow-md transition-all hover:bg-brand-navy hover:shadow-lg hover:shadow-brand-navy/20 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90"
-          >
+          <button type="button" onClick={openAddModal} className={adminPrimaryCtaClass}>
             + ADD NEW PROMPT
           </button>
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-brand-warm-gray/40 bg-white p-5 shadow-lg shadow-brand-navy/5 dark:border-border/60 dark:bg-card sm:p-8">
-        <h2 className="font-serif text-lg font-bold text-brand-navy-dark dark:text-foreground">Versions</h2>
-        {error && <p className="mt-3 text-sm text-rose-700 dark:text-rose-400">{error}</p>}
-        {success && <p className="mt-3 text-sm text-brand-teal-dark dark:text-brand-teal-light">{success}</p>}
+        {error && <p className={`mt-6 ${adminErrorTextClass}`}>{error}</p>}
+        {success && <p className={`mt-6 ${adminSuccessTextClass}`}>{success}</p>}
         {loading && rows.length === 0 ? (
-          <p className="mt-3 text-sm text-brand-slate dark:text-muted-foreground">Loading versions...</p>
+          <p className={`mt-6 ${adminMutedTextClass}`}>Loading versions...</p>
         ) : rows.length === 0 ? (
-          <p className="mt-3 text-sm text-brand-slate dark:text-muted-foreground">No versions loaded yet.</p>
+          <p className={`mt-6 ${adminMutedTextClass}`}>No versions loaded yet.</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full divide-y divide-brand-warm-gray/30 text-sm dark:divide-border">
+          <div className="mt-6 overflow-x-auto">
+            <table className={adminTableClass}>
               <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-brand-slate dark:text-muted-foreground">
+                <tr className={adminTableHeadRowClass}>
                   <th className="px-3 py-2">
                     <span className="inline-flex items-center gap-1">
                       Created
                       <button
                         type="button"
                         onClick={() => setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))}
-                        className="inline-flex min-h-[1.25rem] min-w-[1.25rem] items-center justify-center p-0 text-brand-slate hover:text-brand-navy-dark dark:text-muted-foreground dark:hover:text-foreground"
+                        className={adminTableSortButtonClass}
                         aria-label={sortDir === "desc" ? "Sort oldest first" : "Sort newest first"}
                       >
                         {sortDir === "desc" ? "↓" : "↑"}
@@ -297,7 +313,7 @@ export function PromptAdminContent() {
                   <th className="px-3 py-2 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-brand-warm-gray/20 dark:divide-border">
+              <tbody className={adminTableBodyClass}>
                 {rows.map((row) => (
                   <tr key={row.id}>
                     <td className="px-3 py-2 text-brand-slate dark:text-muted-foreground">
@@ -328,7 +344,7 @@ export function PromptAdminContent() {
                           type="button"
                           disabled={submitting || confirmLoading || pendingRowId === row.id}
                           onClick={() => openEditModal(row)}
-                          className="rounded-lg border border-brand-warm-gray/40 px-3 py-1.5 text-xs transition-colors hover:bg-brand-cream/80 disabled:opacity-60 dark:border-border dark:hover:bg-muted/50"
+                          className={adminTableEditButtonClass}
                         >
                           Edit
                         </button>
@@ -336,7 +352,7 @@ export function PromptAdminContent() {
                           type="button"
                           disabled={submitting || confirmLoading || pendingRowId === row.id}
                           onClick={() => openConfirm("delete", row)}
-                          className="rounded-lg border border-rose-300 px-3 py-1.5 text-xs text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-60 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                          className={adminTableDeleteButtonClass}
                         >
                           Delete
                         </button>
@@ -349,7 +365,7 @@ export function PromptAdminContent() {
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-between text-sm text-brand-slate dark:text-muted-foreground">
+        <div className={`mt-4 flex items-center justify-between ${adminMutedTextClass}`}>
           <p>
             Page {page} of {totalPages}
             {loading ? " (Loading...)" : ""}
@@ -359,7 +375,7 @@ export function PromptAdminContent() {
               type="button"
               disabled={loading || page <= 1}
               onClick={() => void load(page - 1)}
-              className="rounded-lg border border-brand-warm-gray/40 px-3 py-1.5 disabled:opacity-60 dark:border-border"
+              className={adminPaginationButtonClass}
             >
               Previous
             </button>
@@ -367,7 +383,7 @@ export function PromptAdminContent() {
               type="button"
               disabled={loading || page >= totalPages}
               onClick={() => void load(page + 1)}
-              className="rounded-lg border border-brand-warm-gray/40 px-3 py-1.5 disabled:opacity-60 dark:border-border"
+              className={adminPaginationButtonClass}
             >
               Next
             </button>
@@ -382,34 +398,36 @@ export function PromptAdminContent() {
             if (e.currentTarget === e.target) closeModal();
           }}
         >
-          <div className="w-full max-w-3xl rounded-2xl border border-brand-warm-gray/40 bg-white p-5 shadow-2xl dark:border-border dark:bg-card sm:p-8">
-            <h3 className="font-serif text-lg font-bold text-brand-navy-dark dark:text-foreground">
+          <div className={adminModalWidePanelClass}>
+            <h3 className={adminTitleH3Class}>
               {isEditing ? "Edit Prompt Version" : "Add Prompt Version"}
             </h3>
             <div className="mt-4 space-y-4">
               <label className="block">
-                <span className={labelClass}>Prompt Version Name</span>
-                <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+                <span className={adminLabelClass}>Prompt Version Name</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} className={adminInputClass} />
               </label>
               <label className="block">
-                <span className={labelClass}>Audience</span>
+                <span className={adminLabelClass}>Audience</span>
                 <select
                   value={audience}
-                  onChange={(e) => setAudience(e.target.value as "child" | "ex-partner" | "solicitor")}
-                  className={inputClass}
+                  onChange={(e) => setAudience(e.target.value)}
+                  className={adminInputClass}
+                  disabled={audiences.length === 0}
                 >
-                  <option value="child">Child</option>
-                  <option value="ex-partner">Ex-partner</option>
-                  <option value="solicitor">Solicitor</option>
+                  {audiences.length === 0 && <option value="">Loading...</option>}
+                  {audiences.map((a) => (
+                    <option key={a.code} value={a.code}>{a.label}</option>
+                  ))}
                 </select>
               </label>
               <label className="block">
-                <span className={labelClass}>Prompt Edit (Add)</span>
+                <span className={adminLabelClass}>Prompt Edit (Add)</span>
                 <textarea
                   value={system}
                   onChange={(e) => setSystem(e.target.value)}
                   rows={12}
-                  className={textareaClass}
+                  className={adminTextareaClass}
                   spellCheck={false}
                 />
               </label>
@@ -420,7 +438,7 @@ export function PromptAdminContent() {
                 type="button"
                 onClick={() => closeModal()}
                 disabled={submitting}
-                className="rounded-lg border border-brand-warm-gray/40 px-3 py-2 text-sm dark:border-border"
+                className={adminOutlineButtonClass}
               >
                 Cancel
               </button>
@@ -428,7 +446,7 @@ export function PromptAdminContent() {
                 type="button"
                 disabled={submitting}
                 onClick={() => void submitModal()}
-                className="rounded-full bg-brand-navy-dark px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60 dark:bg-primary dark:text-primary-foreground"
+                className={adminPrimarySubmitClass}
               >
                 {submitting ? "Saving..." : isEditing ? "Save" : "Add"}
               </button>
@@ -436,43 +454,28 @@ export function PromptAdminContent() {
           </div>
         </div>
       )}
-      {confirmAction && confirmTarget && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-          onClick={(e) => {
-            if (e.currentTarget === e.target) closeConfirm();
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl border border-brand-warm-gray/40 bg-white p-5 shadow-2xl dark:border-border dark:bg-card">
-            <h3 className="font-serif text-lg font-bold text-brand-navy-dark dark:text-foreground">
-              Confirm {confirmAction === "activate" ? "Activate" : "Delete"}
-            </h3>
-            <p className="mt-2 text-sm text-brand-slate dark:text-muted-foreground">
-              {confirmAction === "activate"
-                ? `Are you sure you want to activate "${confirmTarget.name}"?`
-                : `Are you sure you want to delete "${confirmTarget.name}"?`}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeConfirm}
-                disabled={confirmLoading}
-                className="rounded-lg border border-brand-warm-gray/40 px-3 py-2 text-sm disabled:opacity-60 dark:border-border"
-              >
-                No
-              </button>
-              <button
-                type="button"
-                onClick={() => void onConfirm()}
-                disabled={confirmLoading}
-                className="rounded-full bg-brand-navy-dark px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60 dark:bg-primary dark:text-primary-foreground"
-              >
-                {confirmLoading ? "Processing..." : "Yes"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AdminConfirmDialog
+        open={confirmAction !== null && confirmTarget !== null}
+        title={
+          confirmAction === "activate"
+            ? "Confirm Activate"
+            : confirmAction === "delete"
+              ? "Confirm Delete"
+              : "Confirm"
+        }
+        description={
+          confirmTarget && confirmAction === "activate"
+            ? `Are you sure you want to activate "${confirmTarget.name}"?`
+            : confirmTarget && confirmAction === "delete"
+              ? `Are you sure you want to delete "${confirmTarget.name}"?`
+              : ""
+        }
+        confirmLabel="Yes"
+        cancelLabel="No"
+        loading={confirmLoading}
+        onCancel={closeConfirm}
+        onConfirm={() => void onConfirm()}
+      />
     </div>
   );
 }

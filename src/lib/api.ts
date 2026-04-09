@@ -47,12 +47,81 @@ async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export interface Country {
+  code: string;
+  label: string;
+  aliases: string[];
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface Audience {
+  code: string;
+  label: string;
+  icon: string;
+  color: string;
+  aliases: string[];
+  sort_order: number;
+  is_active: boolean;
+}
+
 export const adminApi = {
+  // ── Audiences ──
+  listAudiences: () =>
+    authedFetch<{ audiences: Audience[] }>("/admin/audiences"),
+  createAudience: (payload: {
+    code: string;
+    label: string;
+    icon?: string;
+    color?: string;
+    aliases?: string[];
+    sort_order?: number;
+    is_active?: boolean;
+  }) =>
+    authedFetch<{ audience: Audience }>("/admin/audiences", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateAudience: (code: string, payload: Partial<Omit<Audience, "code">>) =>
+    authedFetch<{ audience: Audience }>(`/admin/audiences/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteAudience: (code: string) =>
+    authedFetch<void>(`/admin/audiences/${encodeURIComponent(code)}`, {
+      method: "DELETE",
+    }),
+
+  // ── Countries ──
+  listCountries: () =>
+    authedFetch<{ countries: Country[] }>("/admin/countries"),
+  createCountry: (payload: {
+    code: string;
+    label: string;
+    aliases?: string[];
+    sort_order?: number;
+    is_active?: boolean;
+  }) =>
+    authedFetch<{ country: Country }>("/admin/countries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateCountry: (code: string, payload: Partial<Omit<Country, "code">>) =>
+    authedFetch<{ country: Country }>(`/admin/countries/${encodeURIComponent(code)}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deleteCountry: (code: string) =>
+    authedFetch<void>(`/admin/countries/${encodeURIComponent(code)}`, {
+      method: "DELETE",
+    }),
+
+  // ── Prompts ──
   listPromptVersions: (params?: {
     purpose?: string;
     activeOnly?: boolean;
     activeState?: "all" | "active" | "deactive";
-    audience?: "all" | "solicitor" | "ex-partner" | "child";
+    audience?: string;
     search?: string;
     page?: number;
     pageSize?: number;
@@ -72,7 +141,7 @@ export const adminApi = {
   },
   createPromptVersion: (payload: {
     purpose?: string;
-    audience: "solicitor" | "ex-partner" | "child";
+    audience: string;
     name: string;
     system: string;
     is_active?: boolean;
@@ -87,7 +156,7 @@ export const adminApi = {
     }),
   updatePromptVersion: (
     id: string,
-    payload: { name: string; system: string; audience: "solicitor" | "ex-partner" | "child" }
+    payload: { name: string; system: string; audience: string }
   ) =>
     authedFetch<{ prompt_version: PromptVersion }>(`/admin/prompts/${id}`, {
       method: "PATCH",
