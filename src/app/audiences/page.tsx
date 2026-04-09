@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, GripVertical, Users, Heart, Scale, Shield, Briefcase, UserCheck, type LucideIcon } from "lucide-react";
+import { GripVertical, Users, Heart, Scale, Shield, Briefcase, UserCheck, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import LogoLoader from "@/components/ui/LogoLoader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { adminApi, type Audience } from "@/lib/api";
@@ -220,7 +221,7 @@ export default function AudiencesPage() {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+        <LogoLoader />
       </div>
     );
   }
@@ -248,7 +249,13 @@ export default function AudiencesPage() {
             <p className={`mt-6 ${adminErrorTextClass}`}>{error}</p>
           )}
           {loading ? (
-            <p className={`mt-6 ${adminMutedTextClass}`}>Loading audiences...</p>
+            <div className="mt-6 flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-brand-warm-gray/40 bg-brand-cream/20 py-12 dark:border-border dark:bg-muted/20">
+              <LogoLoader size={48} />
+              <div className={`max-w-sm px-4 text-center ${adminMutedTextClass}`}>
+                <p className="font-semibold text-brand-navy-dark dark:text-foreground">Loading audiences</p>
+                <p className="mt-1 text-sm">Fetching audience records from the server.</p>
+              </div>
+            </div>
           ) : audiences.length === 0 ? (
             <p className={`mt-6 ${adminMutedTextClass}`}>
               No audiences configured yet. Use &ldquo;+ ADD AUDIENCE&rdquo; above to get started.

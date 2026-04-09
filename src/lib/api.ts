@@ -156,7 +156,7 @@ export const adminApi = {
     }),
   updatePromptVersion: (
     id: string,
-    payload: { name: string; system: string; audience: string }
+    payload: { name: string; system: string; audience: string; is_active?: boolean }
   ) =>
     authedFetch<{ prompt_version: PromptVersion }>(`/admin/prompts/${id}`, {
       method: "PATCH",

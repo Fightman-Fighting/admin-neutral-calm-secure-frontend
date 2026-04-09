@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { PromptAdminContent } from "@/components/admin/PromptAdminContent";
+import LogoLoader from "@/components/ui/LogoLoader";
 
 export default function AdminHomePage() {
   const { user, loading, profileRole } = useAuth();
@@ -23,7 +23,7 @@ export default function AdminHomePage() {
     if (loading) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+          <LogoLoader />
         </div>
       );
     }
@@ -32,7 +32,7 @@ export default function AdminHomePage() {
     }
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+        <LogoLoader />
       </div>
     );
   }

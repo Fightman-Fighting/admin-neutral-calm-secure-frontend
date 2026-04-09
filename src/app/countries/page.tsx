@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, GripVertical } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import LogoLoader from "@/components/ui/LogoLoader";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
 import { adminApi, type Country } from "@/lib/api";
@@ -174,7 +175,7 @@ export default function CountriesPage() {
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+        <LogoLoader />
       </div>
     );
   }
@@ -200,7 +201,13 @@ export default function CountriesPage() {
             <p className={`mt-6 ${adminErrorTextClass}`}>{error}</p>
           )}
           {loading ? (
-            <p className={`mt-6 ${adminMutedTextClass}`}>Loading countries...</p>
+            <div className="mt-6 flex min-h-[240px] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-brand-warm-gray/40 bg-brand-cream/20 py-12 dark:border-border dark:bg-muted/20">
+              <LogoLoader size={48} />
+              <div className={`max-w-sm px-4 text-center ${adminMutedTextClass}`}>
+                <p className="font-semibold text-brand-navy-dark dark:text-foreground">Loading countries</p>
+                <p className="mt-1 text-sm">Fetching country and jurisdiction records from the server.</p>
+              </div>
+            </div>
           ) : countries.length === 0 ? (
             <p className={`mt-6 ${adminMutedTextClass}`}>
               No countries configured yet. Use &ldquo;+ ADD COUNTRY&rdquo; above to get started.

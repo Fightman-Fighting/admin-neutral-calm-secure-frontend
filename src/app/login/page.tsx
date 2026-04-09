@@ -6,6 +6,7 @@ import { Loader2, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import Logo from "@/components/branding/Logo";
 import { Button } from "@/components/ui/button";
+import LogoLoader from "@/components/ui/LogoLoader";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -38,14 +39,14 @@ export default function AdminLoginPage() {
   if (user && profileRole === "admin") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+        <LogoLoader />
       </div>
     );
   }
   if (authLoading && !user) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-cream/50 dark:bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-brand-teal" aria-hidden />
+        <LogoLoader />
       </div>
     );
   }

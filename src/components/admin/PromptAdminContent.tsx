@@ -1,9 +1,23 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import {
+  Briefcase,
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Heart,
+  Scale,
+  Shield,
+  UserCheck,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { adminApi } from "@/lib/api";
 import type { PromptVersion, Audience } from "@/lib/api";
 import { AdminConfirmDialog } from "@/components/admin/AdminConfirmDialog";
+import LogoLoader from "@/components/ui/LogoLoader";
 import {
   adminErrorTextClass,
   adminInputClass,
@@ -27,9 +41,83 @@ import {
   adminTitleH3Class,
 } from "@/components/admin/adminUi";
 
+const ICON_MAP: Record<string, LucideIcon> = {
+  Heart,
+  Users,
+  Scale,
+  Shield,
+  Briefcase,
+  UserCheck,
+};
+
+const COLOR_MAP: Record<
+  string,
+  { color: string; folderActive: string; badgeBg: string }
+> = {
+  rose: {
+    color: "text-rose-600",
+    folderActive: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+    badgeBg: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  },
+  amber: {
+    color: "text-amber-600",
+    folderActive: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+    badgeBg: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  },
+  indigo: {
+    color: "text-indigo-600",
+    folderActive: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800",
+    badgeBg: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  },
+  emerald: {
+    color: "text-emerald-600",
+    folderActive: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+    badgeBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  },
+  sky: {
+    color: "text-sky-600",
+    folderActive: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800",
+    badgeBg: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  },
+  violet: {
+    color: "text-violet-600",
+    folderActive: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800",
+    badgeBg: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  },
+  slate: {
+    color: "text-slate-600",
+    folderActive: "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-950/40 dark:text-slate-300 dark:border-slate-700",
+    badgeBg: "bg-slate-100 text-slate-700 dark:bg-slate-900/40 dark:text-slate-300",
+  },
+  orange: {
+    color: "text-orange-600",
+    folderActive: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800",
+    badgeBg: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  },
+};
+
+const DEFAULT_STYLE = COLOR_MAP.slate;
+
+function getAudienceFolderStyle(audiencesList: Audience[], code: string) {
+  const a = audiencesList.find((x) => x.code === code);
+  const colors = COLOR_MAP[a?.color ?? "slate"] ?? DEFAULT_STYLE;
+  const Icon = ICON_MAP[a?.icon ?? "Users"] || Users;
+  return {
+    label: a?.label ?? code,
+    icon: Icon,
+    ...colors,
+  };
+}
+
+/** Matches audiences table Status column styling */
+const PROMPT_STATUS_ACTIVE_CLASS =
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+const PROMPT_STATUS_INACTIVE_CLASS =
+  "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400";
+
 export function PromptAdminContent() {
   type ActiveFilter = "all" | "active" | "deactive";
-  type ConfirmAction = "activate" | "delete" | null;
+  type ConfirmAction = "delete" | null;
 
   const [audiences, setAudiences] = useState<Audience[]>([]);
   const audiencesFetched = useRef(false);
@@ -55,6 +143,7 @@ export function PromptAdminContent() {
   const [name, setName] = useState("");
   const [system, setSystem] = useState("");
   const [audience, setAudience] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +162,7 @@ export function PromptAdminContent() {
   const [confirmTarget, setConfirmTarget] = useState<PromptVersion | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const pageSize = 10;
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -105,11 +195,28 @@ export function PromptAdminContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, sortDir, activeFilter, audienceFilter]);
 
+  const folderAudiences = audiences.filter((a) => a.is_active).length > 0
+    ? audiences.filter((a) => a.is_active)
+    : audiences;
+
+  const folderBadgeStyle =
+    audienceFilter !== "all" ? getAudienceFolderStyle(audiences, audienceFilter) : null;
+  const FolderBadgeIcon = folderBadgeStyle?.icon;
+
   const openAddModal = () => {
     setEditingId(null);
     setName("");
     setSystem("");
-    setAudience(audiences.length > 0 ? audiences[0].code : "");
+    setIsActive(true);
+    const defaultAud =
+      audienceFilter !== "all"
+        ? audienceFilter
+        : folderAudiences.length > 0
+          ? folderAudiences[0].code
+          : audiences.length > 0
+            ? audiences[0].code
+            : "";
+    setAudience(defaultAud);
     setIsModalOpen(true);
     setSuccess("");
     setError("");
@@ -120,6 +227,7 @@ export function PromptAdminContent() {
     setName(row.name);
     setSystem(row.components.system);
     setAudience(row.audience);
+    setIsActive(row.is_active);
     setIsModalOpen(true);
     setSuccess("");
     setError("");
@@ -145,6 +253,7 @@ export function PromptAdminContent() {
           name: name.trim(),
           system: system.trim(),
           audience,
+          is_active: isActive,
         });
         setSuccess("Prompt version updated.");
       } else {
@@ -152,7 +261,7 @@ export function PromptAdminContent() {
           name: name.trim(),
           system: system.trim(),
           audience,
-          is_active: false,
+          is_active: isActive,
         });
         setSuccess("Prompt version created.");
       }
@@ -177,8 +286,8 @@ export function PromptAdminContent() {
     }
   };
 
-  const openConfirm = (action: Exclude<ConfirmAction, null>, row: PromptVersion) => {
-    setConfirmAction(action);
+  const openDeleteConfirm = (row: PromptVersion) => {
+    setConfirmAction("delete");
     setConfirmTarget(row);
     setConfirmLoading(false);
     setError("");
@@ -191,30 +300,19 @@ export function PromptAdminContent() {
     setConfirmTarget(null);
   };
 
-  const onConfirm = async () => {
-    if (!confirmAction || !confirmTarget) return;
+  const onConfirmDelete = async () => {
+    if (!confirmTarget) return;
     setConfirmLoading(true);
     setPendingRowId(confirmTarget.id);
     setError("");
     setSuccess("");
     try {
-      if (confirmAction === "activate") {
-        await adminApi.activatePromptVersion(confirmTarget.id);
-        setSuccess("Prompt version activated.");
-      } else {
-        await remove(confirmTarget.id);
-      }
+      await remove(confirmTarget.id);
       await load(page);
       setConfirmAction(null);
       setConfirmTarget(null);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : confirmAction === "activate"
-            ? "Failed to activate version."
-            : "Failed to delete version."
-      );
+      setError(err instanceof Error ? err.message : "Failed to delete version.");
     } finally {
       setConfirmLoading(false);
       setPendingRowId(null);
@@ -231,7 +329,8 @@ export function PromptAdminContent() {
       <div className={adminPanelClass}>
         <h1 className={adminTitleH1Class}>Prompt admin</h1>
         <p className={`mt-2 ${adminMutedTextClass}`}>
-          Manage prompt versions and keep exactly one active version.
+          Manage prompt versions and keep exactly one active version. Pick an audience folder to filter the table, or
+          All versions to see every prompt.
         </p>
 
         <div className="mt-4 flex w-full flex-wrap items-end justify-between gap-3">
@@ -252,19 +351,6 @@ export function PromptAdminContent() {
               Search
             </button>
             <label className="min-w-[180px]">
-              <span className={adminLabelClass}>Audience</span>
-              <select
-                value={audienceFilter}
-                onChange={(e) => setAudienceFilter(e.target.value)}
-                className={adminInputClass}
-              >
-                <option value="all">All</option>
-                {audiences.map((a) => (
-                  <option key={a.code} value={a.code}>{a.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="min-w-[180px]">
               <span className={adminLabelClass}>Active</span>
               <select
                 value={activeFilter}
@@ -282,111 +368,234 @@ export function PromptAdminContent() {
           </button>
         </div>
 
-        {error && <p className={`mt-6 ${adminErrorTextClass}`}>{error}</p>}
-        {success && <p className={`mt-6 ${adminSuccessTextClass}`}>{success}</p>}
-        {loading && rows.length === 0 ? (
-          <p className={`mt-6 ${adminMutedTextClass}`}>Loading versions...</p>
-        ) : rows.length === 0 ? (
-          <p className={`mt-6 ${adminMutedTextClass}`}>No versions loaded yet.</p>
-        ) : (
-          <div className="mt-6 overflow-x-auto">
-            <table className={adminTableClass}>
-              <thead>
-                <tr className={adminTableHeadRowClass}>
-                  <th className="px-3 py-2">
-                    <span className="inline-flex items-center gap-1">
-                      Created
+        <div className="mt-6 flex min-h-0 border-t border-brand-warm-gray/30 pt-6 dark:border-border">
+          <div
+            className={`shrink-0 border-r border-brand-warm-gray/30 transition-all dark:border-border ${
+              sidebarOpen ? "w-56" : "w-0 overflow-hidden border-r-0"
+            }`}
+          >
+            {sidebarOpen && (
+              <nav className="p-3 pr-4" aria-label="Prompt versions by audience">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAudienceFilter("all");
+                    setPage(1);
+                  }}
+                  className={`mb-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    audienceFilter === "all"
+                      ? "bg-brand-navy-dark text-white shadow-sm dark:bg-primary dark:text-primary-foreground"
+                      : "text-brand-slate hover:bg-brand-cream/60 hover:text-brand-navy-dark dark:text-muted-foreground dark:hover:bg-muted/50 dark:hover:text-foreground"
+                  }`}
+                >
+                  {audienceFilter === "all" ? (
+                    <FolderOpen className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Folder className="h-4 w-4 shrink-0" />
+                  )}
+                  All versions
+                </button>
+                <div className="ml-2 border-l border-brand-warm-gray/30 pl-1 dark:border-border">
+                  {folderAudiences.map((a) => {
+                    const style = getAudienceFolderStyle(audiences, a.code);
+                    const Icon = style.icon;
+                    const isActive = audienceFilter === a.code;
+                    return (
                       <button
+                        key={a.code}
                         type="button"
-                        onClick={() => setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))}
-                        className={adminTableSortButtonClass}
-                        aria-label={sortDir === "desc" ? "Sort oldest first" : "Sort newest first"}
-                      >
-                        {sortDir === "desc" ? "↓" : "↑"}
-                      </button>
-                    </span>
-                  </th>
-                  <th className="px-3 py-2">Prompt Version Title</th>
-                  <th className="px-3 py-2 min-w-[440px]">System Prompt</th>
-                  <th className="px-3 py-2">Audience</th>
-                  <th className="px-3 py-2">Active</th>
-                  <th className="px-3 py-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className={adminTableBodyClass}>
-                {rows.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-3 py-2 text-brand-slate dark:text-muted-foreground">
-                      {new Date(row.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 font-semibold text-brand-navy-dark dark:text-foreground">{row.name}</td>
-                    <td className="max-w-[640px] truncate px-3 py-2 text-brand-slate dark:text-muted-foreground">
-                      {row.components.system}
-                    </td>
-                    <td className="px-3 py-2 text-brand-slate dark:text-muted-foreground">
-                      {audienceLabel(row.audience)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        checked={row.is_active}
-                        disabled={confirmLoading || pendingRowId === row.id || row.is_active}
-                        onChange={() => {
-                          if (row.is_active) return;
-                          openConfirm("activate", row);
+                        onClick={() => {
+                          setAudienceFilter(a.code);
+                          setPage(1);
                         }}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          disabled={submitting || confirmLoading || pendingRowId === row.id}
-                          onClick={() => openEditModal(row)}
-                          className={adminTableEditButtonClass}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          disabled={submitting || confirmLoading || pendingRowId === row.id}
-                          onClick={() => openConfirm("delete", row)}
-                          className={adminTableDeleteButtonClass}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        className={`mb-0.5 flex w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? `${style.folderActive} shadow-sm`
+                            : "text-brand-slate hover:bg-brand-cream/60 hover:text-brand-navy-dark dark:text-muted-foreground dark:hover:bg-muted/50 dark:hover:text-foreground"
+                        }`}
+                      >
+                        {isActive ? (
+                          <FolderOpen className={`h-4 w-4 shrink-0 ${style.color}`} />
+                        ) : (
+                          <Folder className="h-4 w-4 shrink-0" />
+                        )}
+                        <Icon className={`h-3.5 w-3.5 shrink-0 ${isActive ? style.color : ""}`} />
+                        <span className="truncate">{a.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </nav>
+            )}
           </div>
-        )}
 
-        <div className={`mt-4 flex items-center justify-between ${adminMutedTextClass}`}>
-          <p>
-            Page {page} of {totalPages}
-            {loading ? " (Loading...)" : ""}
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={loading || page <= 1}
-              onClick={() => void load(page - 1)}
-              className={adminPaginationButtonClass}
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={loading || page >= totalPages}
-              onClick={() => void load(page + 1)}
-              className={adminPaginationButtonClass}
-            >
-              Next
-            </button>
+          <div className="min-w-0 flex-1 pl-4 sm:pl-5">
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen((v) => !v)}
+                className={adminOutlineButtonClass}
+                aria-label={sidebarOpen ? "Hide audience folders" : "Show audience folders"}
+              >
+                {sidebarOpen ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+              {folderBadgeStyle && FolderBadgeIcon && (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${folderBadgeStyle.badgeBg}`}
+                >
+                  <FolderBadgeIcon className="h-3 w-3" />
+                  {folderBadgeStyle.label}
+                </span>
+              )}
+            </div>
+
+            {error && <p className={`mb-3 ${adminErrorTextClass}`}>{error}</p>}
+            {success && <p className={`mb-3 ${adminSuccessTextClass}`}>{success}</p>}
+            {loading && rows.length === 0 ? (
+              <div className="flex min-h-[280px] flex-col items-center justify-center gap-4 py-12">
+                <LogoLoader size={52} />
+                <div className={`max-w-sm text-center ${adminMutedTextClass}`}>
+                  <p className="font-semibold text-brand-navy-dark dark:text-foreground">Loading prompt versions</p>
+                  <p className="mt-1 text-sm">Fetching the list from the server. Large tables may take a moment.</p>
+                </div>
+              </div>
+            ) : rows.length === 0 ? (
+              <p className={adminMutedTextClass}>No versions loaded yet.</p>
+            ) : (
+              <div className="relative min-w-0 overflow-hidden">
+                {loading && (
+                  <div
+                    className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-lg bg-white/75 backdrop-blur-[2px] dark:bg-background/75"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                  >
+                    <LogoLoader size={44} />
+                    <p className={`text-sm ${adminMutedTextClass}`}>Updating the prompt list…</p>
+                  </div>
+                )}
+                <table className={`${adminTableClass} w-full table-fixed`}>
+                  <colgroup>
+                    {/* Narrow created column; system prompt col (no width) absorbs remaining table width. */}
+                    <col style={{ width: "12rem" }} />
+                    <col style={{ width: "14rem" }} />
+                    <col />
+                    <col style={{ width: "8.5rem" }} />
+                    <col style={{ width: "6.5rem" }} />
+                    <col style={{ width: "11rem" }} />
+                  </colgroup>
+                  <thead>
+                    <tr className={adminTableHeadRowClass}>
+                      <th className="align-top px-3 py-2">
+                        <span className="inline-flex items-center gap-1">
+                          Created
+                          <button
+                            type="button"
+                            onClick={() => setSortDir((prev) => (prev === "desc" ? "asc" : "desc"))}
+                            className={adminTableSortButtonClass}
+                            aria-label={sortDir === "desc" ? "Sort oldest first" : "Sort newest first"}
+                          >
+                            {sortDir === "desc" ? "↓" : "↑"}
+                          </button>
+                        </span>
+                      </th>
+                      <th className="align-top px-3 py-2">Prompt Version Title</th>
+                      <th className="align-top px-3 py-2">System Prompt</th>
+                      <th className="align-top px-3 py-2">Audience</th>
+                      <th className="align-top px-3 py-2 text-center">Status</th>
+                      <th className="align-top px-3 py-2 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className={adminTableBodyClass}>
+                    {rows.map((row) => {
+                      const createdStr = new Date(row.created_at).toLocaleString();
+                      return (
+                      <tr key={row.id}>
+                        <td className="align-top overflow-hidden px-3 py-2 text-brand-slate dark:text-muted-foreground">
+                          <span className="block whitespace-nowrap" title={createdStr}>
+                            {createdStr}
+                          </span>
+                        </td>
+                        <td className="align-top overflow-hidden px-3 py-2 font-semibold text-brand-navy-dark dark:text-foreground">
+                          <span className="block whitespace-normal break-words [overflow-wrap:anywhere]">
+                            {row.name}
+                          </span>
+                        </td>
+                        <td className="min-w-0 align-top overflow-hidden px-3 py-2 text-brand-slate dark:text-muted-foreground">
+                          <span className="block truncate" title={row.components.system}>
+                            {row.components.system}
+                          </span>
+                        </td>
+                        <td className="align-top overflow-hidden px-3 py-2 text-brand-slate dark:text-muted-foreground">
+                          <span className="block whitespace-normal break-words [overflow-wrap:anywhere]">
+                            {audienceLabel(row.audience)}
+                          </span>
+                        </td>
+                        <td className="align-top px-3 py-2 text-center">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                              row.is_active ? PROMPT_STATUS_ACTIVE_CLASS : PROMPT_STATUS_INACTIVE_CLASS
+                            }`}
+                          >
+                            {row.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="align-top whitespace-nowrap px-3 py-2">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={submitting || confirmLoading || pendingRowId === row.id}
+                              onClick={() => openEditModal(row)}
+                              className={adminTableEditButtonClass}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              disabled={submitting || confirmLoading || pendingRowId === row.id}
+                              onClick={() => openDeleteConfirm(row)}
+                              className={adminTableDeleteButtonClass}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className={`mt-4 flex items-center justify-between ${adminMutedTextClass}`}>
+              <p>
+                Page {page} of {totalPages}
+                {loading && rows.length > 0 ? " — updating list" : ""}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={loading || page <= 1}
+                  onClick={() => void load(page - 1)}
+                  className={adminPaginationButtonClass}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={loading || page >= totalPages}
+                  onClick={() => void load(page + 1)}
+                  className={adminPaginationButtonClass}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -431,6 +640,15 @@ export function PromptAdminContent() {
                   spellCheck={false}
                 />
               </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className={`${adminMutedTextClass} font-normal`}>Active</span>
+              </label>
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
@@ -455,26 +673,16 @@ export function PromptAdminContent() {
         </div>
       )}
       <AdminConfirmDialog
-        open={confirmAction !== null && confirmTarget !== null}
-        title={
-          confirmAction === "activate"
-            ? "Confirm Activate"
-            : confirmAction === "delete"
-              ? "Confirm Delete"
-              : "Confirm"
-        }
+        open={confirmAction === "delete" && confirmTarget !== null}
+        title="Confirm Delete"
         description={
-          confirmTarget && confirmAction === "activate"
-            ? `Are you sure you want to activate "${confirmTarget.name}"?`
-            : confirmTarget && confirmAction === "delete"
-              ? `Are you sure you want to delete "${confirmTarget.name}"?`
-              : ""
+          confirmTarget ? `Are you sure you want to delete "${confirmTarget.name}"?` : ""
         }
         confirmLabel="Yes"
         cancelLabel="No"
         loading={confirmLoading}
         onCancel={closeConfirm}
-        onConfirm={() => void onConfirm()}
+        onConfirm={() => void onConfirmDelete()}
       />
     </div>
   );
