@@ -40,11 +40,42 @@ async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("Cannot reach admin API. Ensure admin-neutral-calm-secure-backend is running (NEXT_PUBLIC_API_URL).");
   }
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || "Request failed");
+  // 204 No Content — return immediately without reading the body.
+  if (res.status === 204) {
+    return undefined as T;
   }
-  return res.json();
+
+  // Read the body once as text so we never call res.json() (which throws on empty bodies).
+  let text: string;
+  try {
+    text = await res.text();
+  } catch {
+    if (res.ok) return undefined as T;
+    throw new Error("Request failed");
+  }
+
+  if (!res.ok) {
+    let message = "Request failed";
+    if (text) {
+      try {
+        const body = JSON.parse(text) as { error?: string };
+        message = body.error || message;
+      } catch {
+        message = text;
+      }
+    }
+    throw new Error(message);
+  }
+
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error("Invalid JSON from server");
+  }
 }
 
 export interface Country {

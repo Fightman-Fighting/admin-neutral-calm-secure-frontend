@@ -206,8 +206,9 @@ export default function AudiencesPage() {
     if (!deleteCode) return;
     setDeleteLoading(true);
     setError("");
+    const code = deleteCode;
     try {
-      await adminApi.deleteAudience(deleteCode);
+      await adminApi.deleteAudience(code);
       setDeleteCode(null);
       await fetchAudiences();
     } catch (err) {

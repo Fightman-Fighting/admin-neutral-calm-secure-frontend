@@ -160,8 +160,9 @@ export default function CountriesPage() {
     if (!deleteCode) return;
     setDeleteLoading(true);
     setError("");
+    const code = deleteCode;
     try {
-      await adminApi.deleteCountry(deleteCode);
+      await adminApi.deleteCountry(code);
       setDeleteCode(null);
       await fetchCountries();
     } catch (err) {

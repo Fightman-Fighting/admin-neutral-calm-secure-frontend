@@ -306,11 +306,12 @@ export function PromptAdminContent() {
     setPendingRowId(confirmTarget.id);
     setError("");
     setSuccess("");
+    const id = confirmTarget.id;
     try {
-      await remove(confirmTarget.id);
-      await load(page);
+      await remove(id);
       setConfirmAction(null);
       setConfirmTarget(null);
+      await load(page);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete version.");
     } finally {
